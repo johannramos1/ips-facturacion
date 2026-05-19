@@ -269,11 +269,36 @@ select option{background:var(--bg-card)}
 </head>
 <body>
 
+
+<!-- LOGIN SCREEN -->
+<div id="login-screen" style="display:none;position:fixed;inset:0;background:var(--bg);z-index:99999;display:flex;align-items:center;justify-content:center">
+  <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-lg);padding:2.5rem 2rem;width:100%;max-width:360px;box-shadow:var(--shadow-md)">
+    <div style="text-align:center;margin-bottom:2rem">
+      <div style="width:44px;height:44px;background:var(--accent);border-radius:10px;display:flex;align-items:center;justify-content:center;margin:0 auto 1rem">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+      </div>
+      <div style="font-size:18px;font-weight:600;color:var(--text)">IPS Control</div>
+      <div style="font-size:12px;color:var(--text3);margin-top:3px">Valle del Cauca — Acceso restringido</div>
+    </div>
+    <div class="fg">
+      <label>Usuario</label>
+      <input type="text" id="login-user" placeholder="Su usuario" autocomplete="username" onkeydown="if(event.key==='Enter')document.getElementById('login-pass').focus()">
+    </div>
+    <div class="fg">
+      <label>Contraseña</label>
+      <input type="password" id="login-pass" placeholder="Su contraseña" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()">
+    </div>
+    <div id="login-error" style="display:none;font-size:12px;color:var(--red);background:var(--red-light);border:1px solid #c0392b20;border-radius:var(--r-sm);padding:8px 12px;margin-bottom:12px"></div>
+    <button class="btn btn-primary" style="width:100%;justify-content:center;padding:10px" onclick="doLogin()" id="login-btn">Ingresar</button>
+    <p style="font-size:11px;color:var(--text3);text-align:center;margin-top:1rem">Acceso autorizado únicamente para personal de la organización.</p>
+  </div>
+</div>
+
 <div class="loader" id="loader">
   <div class="loader-box"><div class="lspin"></div><div class="lmsg" id="lmsg">Cargando datos...</div></div>
 </div>
 
-<div class="shell">
+<div class="shell" style="display:none">
 <aside class="sidebar">
   <div class="brand">
     <div class="brand-mark">
@@ -309,7 +334,7 @@ select option{background:var(--bg-card)}
     <svg class="nav-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
     Configurar
   </div>
-  <div class="sidebar-foot">Datos en <strong style="color:var(--text2)">Supabase</strong><br>Accesible desde cualquier equipo.</div>
+  <div class="sidebar-foot">Datos en <strong style="color:var(--text2)">Supabase</strong><br>Accesible desde cualquier equipo.<br><br><button class="btn btn-danger btn-sm" style="width:100%;justify-content:center;margin-top:4px" onclick="doLogout()">Cerrar sesión</button></div>
 </aside>
 
 <div style="flex:1;min-width:0;display:flex;flex-direction:column">
@@ -1019,9 +1044,41 @@ function exportCSV(){
 // ═══════════════════════════════
 // CONFIG
 // ═══════════════════════════════
+
+    <div class="card" style="margin-top:14px">
+      <div class="card-head">
+        <span class="card-label">Gestión de usuarios</span>
+        <button class="btn btn-primary btn-sm" onclick="showAddUser()">+ Nuevo usuario</button>
+      </div>
+      <div class="card-body">
+        <div id="add-user-form" style="display:none;background:var(--bg-card2);border:1px solid var(--border);border-radius:var(--r-sm);padding:1rem;margin-bottom:1rem">
+          <div class="fr3">
+            <div class="fg" style="margin-bottom:8px"><label>Nombre completo</label><input type="text" id="nu-nombre" placeholder="Ej: Dr. Gerente"></div>
+            <div class="fg" style="margin-bottom:8px"><label>Usuario</label><input type="text" id="nu-user" placeholder="Ej: gerencia"></div>
+            <div class="fg" style="margin-bottom:8px"><label>Contraseña</label><input type="password" id="nu-pass" placeholder="Mínimo 4 caracteres"></div>
+          </div>
+          <div class="btn-group">
+            <button class="btn btn-primary btn-sm" onclick="crearUsuario()">Guardar usuario</button>
+            <button class="btn btn-ghost btn-sm" onclick="document.getElementById('add-user-form').style.display='none'">Cancelar</button>
+          </div>
+        </div>
+        <div id="lista-usuarios"></div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:14px">
+      <div class="card-head">
+        <span class="card-label">Log de accesos</span>
+        <button class="btn btn-ghost btn-sm" onclick="cargarLog()">↻ Actualizar</button>
+      </div>
+      <div class="card-body">
+        <div id="accesos-log"><div class="empty"><div class="empty-txt">Haga clic en Actualizar para ver los accesos</div></div></div>
+      </div>
+    </div>
+
 async function saveConfig(k,v){await sbP('configuracion','clave=eq.'+k,{valor:JSON.stringify(v)});}
 function renderConfig(){
-  fillSelects();
+  fillSelects();cargarUsuarios();
   document.getElementById('lista-sedes').innerHTML=ST.sedes.map(s=>`<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)"><span>${sBadge(s)} <span style="font-size:13px;margin-left:4px">${s}</span></span><button class="btn btn-ghost btn-sm" onclick="delSede('${s}')">✕</button></div>`).join('');
   const bS={};ST.sedes.forEach(s=>bS[s]=[]);ST.medicos.forEach(m=>{if(bS[m.s])bS[m.s].push(m);});
   document.getElementById('lista-medicos').innerHTML=ST.sedes.map(s=>`<div style="margin-bottom:12px"><div style="font-size:10px;font-weight:600;letter-spacing:.07em;color:var(--text3);margin-bottom:6px;text-transform:uppercase">${s}</div>${(bS[s]||[]).map(m=>`<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 10px;background:var(--bg-card2);border-radius:var(--r-sm);margin-bottom:3px;border:1px solid var(--border)"><span style="font-size:13px">${m.n}</span><button class="btn btn-ghost btn-sm" onclick="delMedico('${m.n}','${m.s}')">✕</button></div>`).join('')||'<div style="font-size:12px;color:var(--text3)">Sin médicos</div>'}</div>`).join('');
@@ -1034,7 +1091,150 @@ async function delMedico(n,s){if(!confirm(`¿Eliminar ${n}?`))return;loader(true
 // ═══════════════════════════════
 // INIT
 // ═══════════════════════════════
-loadAll().then(ok=>{if(ok)renderResumen();});
+checkLogin();
+
+// ═══════════════════════════════
+// AUTH
+// ═══════════════════════════════
+let SESSION_USER = null;
+
+async function checkLogin(){
+  const saved = sessionStorage.getItem('ips_session');
+  if(saved){
+    SESSION_USER = JSON.parse(saved);
+    document.getElementById('login-screen').style.display='none';
+    document.querySelector('.shell').style.display='flex';
+    return;
+  }
+  document.getElementById('login-screen').style.display='flex';
+  document.querySelector('.shell').style.display='none';
+}
+
+async function doLogin(){
+  const user = document.getElementById('login-user').value.trim().toLowerCase();
+  const pass = document.getElementById('login-pass').value;
+  const btn = document.getElementById('login-btn');
+  const err = document.getElementById('login-error');
+  if(!user||!pass){err.textContent='Complete usuario y contraseña.';err.style.display='block';return;}
+  btn.textContent='Verificando...';btn.disabled=true;
+  try{
+    const rows = await sbG('usuarios','usuario=eq.'+encodeURIComponent(user)+'&activo=eq.true&select=id,nombre,usuario,clave');
+    const ok = rows.length>0 && rows[0].clave===pass;
+    // Log acceso
+    await sbU('accesos_log',[{usuario:user,exitoso:ok}]);
+    if(ok){
+      SESSION_USER={id:rows[0].id,nombre:rows[0].nombre,usuario:rows[0].usuario};
+      sessionStorage.setItem('ips_session',JSON.stringify(SESSION_USER));
+      document.getElementById('login-screen').style.display='none';
+      document.querySelector('.shell').style.display='flex';
+      // Add username to statusbar
+      document.getElementById('slast').textContent='Usuario: '+rows[0].nombre;
+      await loadAll();renderResumen();
+    }else{
+      err.textContent='Usuario o contraseña incorrectos.';err.style.display='block';
+      document.getElementById('login-pass').value='';
+    }
+  }catch(e){err.textContent='Error de conexión: '+e.message;err.style.display='block';}
+  finally{btn.textContent='Ingresar';btn.disabled=false;}
+}
+
+function doLogout(){
+  sessionStorage.removeItem('ips_session');
+  SESSION_USER=null;
+  document.getElementById('login-screen').style.display='flex';
+  document.querySelector('.shell').style.display='none';
+  document.getElementById('login-user').value='';
+  document.getElementById('login-pass').value='';
+  document.getElementById('login-error').style.display='none';
+}
+
+// ═══════════════════════════════
+// USER MANAGEMENT
+// ═══════════════════════════════
+function showAddUser(){
+  const f=document.getElementById('add-user-form');
+  f.style.display=f.style.display==='none'?'block':'none';
+}
+
+async function cargarUsuarios(){
+  try{
+    const users=await sbG('usuarios','order=created_at.asc');
+    if(!users.length){document.getElementById('lista-usuarios').innerHTML='<div class="empty"><div class="empty-txt">No hay usuarios creados aún.</div></div>';return;}
+    document.getElementById('lista-usuarios').innerHTML=`
+      <table>
+        <thead><tr><th>Nombre</th><th>Usuario</th><th class="tc">Estado</th><th class="tc">Creado</th><th></th></tr></thead>
+        <tbody>${users.map(u=>`<tr>
+          <td style="font-weight:500">${u.nombre}</td>
+          <td style="font-family:var(--mono);font-size:12px">${u.usuario}</td>
+          <td class="tc">${u.activo?'<span class="badge b-up">Activo</span>':'<span class="badge b-dn">Inactivo</span>'}</td>
+          <td class="tc" style="font-size:12px;color:var(--text3)">${new Date(u.created_at).toLocaleDateString('es-CO')}</td>
+          <td class="tc">
+            <div class="btn-group" style="justify-content:center">
+              <button class="btn btn-sm btn-ghost" onclick="toggleUser('${u.id}',${!u.activo})">${u.activo?'Desactivar':'Activar'}</button>
+              <button class="btn btn-sm" onclick="cambiarClave('${u.id}','${u.usuario}')">Cambiar clave</button>
+              <button class="btn btn-sm btn-danger" onclick="eliminarUsuario('${u.id}','${u.nombre}')">Eliminar</button>
+            </div>
+          </td>
+        </tr>`).join('')}</tbody>
+      </table>`;
+  }catch(e){toast('Error cargando usuarios: '+e.message,true);}
+}
+
+async function crearUsuario(){
+  const nombre=document.getElementById('nu-nombre').value.trim();
+  const usuario=document.getElementById('nu-user').value.trim().toLowerCase();
+  const clave=document.getElementById('nu-pass').value;
+  if(!nombre||!usuario||clave.length<4){toast('Complete todos los campos. Clave mínimo 4 caracteres.',true);return;}
+  loader(true,'Creando usuario...');
+  try{
+    await sbU('usuarios',[{nombre,usuario,clave,activo:true}]);
+    toast('Usuario creado: '+usuario);
+    document.getElementById('nu-nombre').value='';
+    document.getElementById('nu-user').value='';
+    document.getElementById('nu-pass').value='';
+    document.getElementById('add-user-form').style.display='none';
+    cargarUsuarios();
+  }catch(e){toast('Error: '+e.message+' (¿usuario duplicado?)',true);}
+  finally{loader(false);}
+}
+
+async function toggleUser(id,activo){
+  loader(true);
+  try{await sbP('usuarios','id=eq.'+id,{activo});toast(activo?'Usuario activado':'Usuario desactivado');cargarUsuarios();}
+  catch(e){toast('Error',true);}finally{loader(false);}
+}
+
+async function cambiarClave(id,usuario){
+  const nueva=prompt('Nueva contraseña para '+usuario+':');
+  if(!nueva||nueva.length<4){if(nueva!==null)toast('Mínimo 4 caracteres',true);return;}
+  loader(true);
+  try{await sbP('usuarios','id=eq.'+id,{clave:nueva});toast('Contraseña actualizada');}
+  catch(e){toast('Error',true);}finally{loader(false);}
+}
+
+async function eliminarUsuario(id,nombre){
+  if(!confirm('¿Eliminar usuario "'+nombre+'"? Esta acción no se puede deshacer.'))return;
+  loader(true);
+  try{await sbD('usuarios','id=eq.'+id);toast('Usuario eliminado');cargarUsuarios();}
+  catch(e){toast('Error',true);}finally{loader(false);}
+}
+
+async function cargarLog(){
+  try{
+    const logs=await sbG('accesos_log','order=fecha.desc&limit=50');
+    if(!logs.length){document.getElementById('accesos-log').innerHTML='<div class="empty"><div class="empty-txt">Sin registros de acceso aún.</div></div>';return;}
+    document.getElementById('accesos-log').innerHTML=`
+      <table>
+        <thead><tr><th>Usuario</th><th class="tc">Resultado</th><th>Fecha y hora</th></tr></thead>
+        <tbody>${logs.map(l=>`<tr>
+          <td style="font-family:var(--mono);font-size:12px">${l.usuario}</td>
+          <td class="tc">${l.exitoso?'<span class="badge b-up">✓ Exitoso</span>':'<span class="badge b-dn">✗ Fallido</span>'}</td>
+          <td style="font-size:12px;color:var(--text2)">${new Date(l.fecha).toLocaleString('es-CO')}</td>
+        </tr>`).join('')}</tbody>
+      </table>`;
+  }catch(e){toast('Error cargando log',true);}
+}
+
 // Init number format toggle state
 (function(){const f=localStorage.getItem('ips_numfmt')||'corto';NUM_FORMAT=f;
   setTimeout(()=>setNumFormat(f),100);})();
