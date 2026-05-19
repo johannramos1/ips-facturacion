@@ -1119,26 +1119,33 @@ async function doLogin(){
   const pass = document.getElementById('login-pass').value;
   const btn = document.getElementById('login-btn');
   const err = document.getElementById('login-error');
+  err.style.display='none';
   if(!user||!pass){err.textContent='Complete usuario y contraseña.';err.style.display='block';return;}
   btn.textContent='Verificando...';btn.disabled=true;
   try{
-    const rows = await sbG('usuarios','usuario=eq.'+encodeURIComponent(user)+'&activo=eq.true');
-    const ok = rows.length>0 && rows[0].clave===pass;
-    // Log acceso
-    await sbU('accesos_log',[{usuario:user,exitoso:ok}]);
-    if(ok){
-      SESSION_USER={id:rows[0].id,nombre:rows[0].nombre,usuario:rows[0].usuario};
+    // Traer todos los usuarios activos y comparar en JS para evitar problemas con caracteres especiales
+    const rows = await sbG('usuarios','activo=eq.true');
+    const match = rows.find(r => r.usuario.toLowerCase()===user && r.clave===pass);
+    // Log
+    try{ await sbU('accesos_log',[{usuario:user,exitoso:!!match}]); }catch(e){}
+    if(match){
+      SESSION_USER={id:match.id,nombre:match.nombre,usuario:match.usuario};
       sessionStorage.setItem('ips_session',JSON.stringify(SESSION_USER));
       document.getElementById('login-screen').style.display='none';
       document.querySelector('.shell').style.display='flex';
-      document.getElementById('slast').textContent='👤 '+rows[0].nombre;
+      document.getElementById('slast').textContent='👤 '+match.nombre;
       await loadAll();
       renderResumen();
     }else{
-      err.textContent='Usuario o contraseña incorrectos.';err.style.display='block';
+      err.textContent='Usuario o contraseña incorrectos. Verifique mayúsculas y símbolos.';
+      err.style.display='block';
       document.getElementById('login-pass').value='';
+      document.getElementById('login-pass').focus();
     }
-  }catch(e){err.textContent='Error de conexión: '+e.message;err.style.display='block';}
+  }catch(e){
+    err.textContent='Error de conexión: '+e.message;
+    err.style.display='block';
+  }
   finally{btn.textContent='Ingresar';btn.disabled=false;}
 }
 
