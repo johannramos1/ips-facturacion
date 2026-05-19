@@ -398,8 +398,19 @@ select option{background:var(--bg-card)}
 
 <!-- CONFIG -->
 <div class="page" id="page-config">
-  <div class="ph"><div><div class="ph-title">Configuración</div><div class="ph-sub">Sedes y médicos activos</div></div></div>
+  <div class="ph"><div><div class="ph-title">Configuración</div><div class="ph-sub">Sedes, médicos y preferencias</div></div></div>
   <div style="padding:1.5rem 2rem">
+    <div class="card" style="margin-bottom:14px">
+      <div class="card-head"><span class="card-label">Formato de números</span></div>
+      <div class="card-body">
+        <p style="font-size:13px;color:var(--text2);margin-bottom:1rem">Elige cómo quieres ver los valores en toda la aplicación. El ajuste se guarda en este navegador.</p>
+        <div class="btn-group" style="margin-bottom:.75rem">
+          <button id="fmt-corto" class="btn btn-primary" onclick="setNumFormat('corto')">Formato corto &nbsp;<span style="font-family:var(--mono);font-size:12px">$1.23M</span></button>
+          <button id="fmt-completo" class="btn btn-ghost" onclick="setNumFormat('completo')">Formato completo &nbsp;<span style="font-family:var(--mono);font-size:12px">$1.230.456</span></button>
+        </div>
+        <p id="fmt-desc" style="font-size:12px;color:var(--text3)">Ejemplo: $1.23M · $856K · $2.1B</p>
+      </div>
+    </div>
     <div class="g2">
       <div class="card">
         <div class="card-head"><span class="card-label">Sedes</span></div>
@@ -457,8 +468,17 @@ let chEvol=null;
 // HELPERS
 // ═══════════════════════════════
 function fmtN(n,d=0){if(!n&&n!==0)return'—';return new Intl.NumberFormat('es-CO',{maximumFractionDigits:d}).format(Math.round(n));}
-function fmtM(n){if(!n&&n!==0)return'—';if(Math.abs(n)>=1000000000)return'$'+(n/1000000000).toFixed(2)+'B';if(Math.abs(n)>=1000000)return'$'+(n/1000000).toFixed(2)+'M';if(Math.abs(n)>=1000)return'$'+(n/1000).toFixed(0)+'K';return'$'+Math.round(n);}
+let NUM_FORMAT=localStorage.getItem('ips_numfmt')||'corto';
+function fmtM(n){
+  if(!n&&n!==0)return'—';
+  if(NUM_FORMAT==='completo')return'$'+Math.round(n).toLocaleString('es-CO');
+  if(Math.abs(n)>=1000000000)return'$'+(n/1000000000).toFixed(2)+'B';
+  if(Math.abs(n)>=1000000)return'$'+(n/1000000).toFixed(2)+'M';
+  if(Math.abs(n)>=1000)return'$'+(n/1000).toFixed(0)+'K';
+  return'$'+Math.round(n);
+}
 function fmt(n){if(!n&&n!==0)return'—';return'$'+Math.round(n).toLocaleString('es-CO');}
+function setNumFormat(f){NUM_FORMAT=f;localStorage.setItem('ips_numfmt',f);document.getElementById('fmt-corto').classList.toggle('btn-primary',f==='corto');document.getElementById('fmt-corto').classList.toggle('btn-ghost',f!=='corto');document.getElementById('fmt-completo').classList.toggle('btn-primary',f==='completo');document.getElementById('fmt-completo').classList.toggle('btn-ghost',f!=='completo');document.getElementById('fmt-desc').textContent=f==='corto'?'Ejemplo: $1.23M · $856K · $2.1B':'Ejemplo: $1.230.456 · $856.000 · $2.100.000.000';}
 function pctV(v){if(v===null||!isFinite(v)||isNaN(v))return null;return Math.round(v*100);}
 function pctBadge(v){const p=pctV(v);if(p===null)return'<span class="badge b-neu">—</span>';return`<span class="badge ${p>=0?'b-up':'b-dn'}">${p>=0?'↑':'↓'} ${Math.abs(p)}%</span>`;}
 function vPill(v){const p=pctV(v);if(p===null)return`<span class="vp vp-na">—</span>`;return`<span class="vp ${p>=0?'vp-up':'vp-dn'}">${p>=0?'▲':'▼'}${Math.abs(p)}%</span>`;}
@@ -482,13 +502,13 @@ function setStatus(ok,msg){const d=document.getElementById('sdot'),m=document.ge
 async function loadAll(){
   setStatus(null,'Conectando...');loader(true,'Cargando datos desde Supabase...');
   try{
-    const[regs,urgs,tots,cfgs]=await Promise.all([
+    const[regs,tots,cfgs]=await Promise.all([
       sbG('registros','order=periodo.desc,sede.asc'),
-      sbG('urgencias','order=periodo.desc,sede.asc'),
+
       sbG('totales_sede','order=periodo.desc,sede.asc'),
       sbG('configuracion','select=clave,valor')
     ]);
-    ST.registros=regs;ST.urgencias=urgs;ST.totales=tots;
+    ST.registros=regs;ST.urgencias=[];ST.totales=tots;
     const sr=cfgs.find(c=>c.clave==='sedes'),mr=cfgs.find(c=>c.clave==='medicos');
     ST.sedes=sr?sr.valor:[];ST.medicos=mr?mr.valor:[];
     ST.loaded=true;
@@ -552,7 +572,7 @@ function renderResumen(){
   let T=ST.totales.filter(t=>(anio==='todos'||t.periodo.startsWith(anio))&&(perF==='todos'||t.periodo===perF));
 
   const pers=[...new Set(R.map(r=>r.periodo))];
-  const totU=U.reduce((a,u)=>a+(u.valor||0),0);
+  const totU=0;
   const totT=T.reduce((a,t)=>a+(t.total_facturado||0),0);
   const totPac=R.reduce((a,r)=>a+(r.pacientes||0),0);
 
@@ -571,13 +591,9 @@ function renderResumen(){
       <div class="mtile-val">${fmtM(totT)}</div>
       <div class="mtile-sub">${T.length} registros · ${pers.length} período${pers.length!==1?'s':''}</div>
     </div>
-    <div class="mtile" style="--tc:var(--red)">
-      <div class="mtile-lbl">Urgencias / Prioritaria</div>
-      <div class="mtile-val">${fmtM(totU)}</div>
-      <div class="mtile-sub">${U.length} registros de servicio</div>
-    </div>
+
     <div class="mtile" style="--tc:var(--green)">
-      <div class="mtile-lbl">Prom. general médicos</div>
+      <div class="mtile-lbl">Promedio general médicos</div>
       <div class="mtile-val">${fmtM(promGlobal)}</div>
       <div class="mtile-sub">${rank.length} médicos activos · ${fmtN(totPac)} pac.</div>
     </div>
@@ -618,10 +634,7 @@ function renderResumen(){
         </div>
       </div>`).join('');
 
-    const urgHtml=urgTotal>0?`<div class="sede-urg-row" style="background:${sv?.cls==='svc-urg'?'var(--red-light)':'var(--amber-light)'};border-color:${sv?.cls==='svc-urg'?'#c0392b20':'#b4530920'}">
-      <span style="font-size:11px;color:${sv?.color||'var(--amber)'}">⚕ ${sv?.lbl||'Servicio'}</span>
-      <span style="font-size:12px;font-family:var(--mono);font-weight:600;color:${sv?.color||'var(--amber)'}">${fmt(urgTotal)}</span>
-    </div>`:'';
+    const urgHtml='';
 
     return`<div class="sede-card">
       <div class="sede-card-head" style="--sc:${col}">
@@ -638,7 +651,6 @@ function renderResumen(){
       <div class="sede-card-body">
         <div class="sede-pac-row">👥 ${fmtN(totalPacSede)} pacientes atendidos en total</div>
         ${medRows||'<div style="font-size:12px;color:var(--text3)">Sin datos para este período</div>'}
-        ${urgHtml}
       </div>
     </div>`;
   }).join('');
@@ -753,14 +765,7 @@ function renderReporte(){
     return`<td>${Math.round(mR.reduce((a,r)=>a+(r.pacientes||0),0)/mR.length)}</td>`;
   }).join('');
 
-  // Fila urgencias
-  const urgRow=mesConDatos.map(mk=>{
-    const u=U.find(x=>x.periodo===mk);
-    if(!u?.valor)return`<td class="cell-na">—</td>`;
-    const prevMk=prevP(mk);const prevU=U.find(x=>x.periodo===prevMk);
-    const v=prevU?.valor?(u.valor-prevU.valor)/prevU.valor:null;
-    return`<td><div>${fmtM(u.valor)}</div><div style="margin-top:1px">${vPill(v)}</div></td>`;
-  }).join('');
+  const urgRow='';
 
   // Fila total facturado sede
   const totRow=mesConDatos.map(mk=>{
@@ -791,7 +796,7 @@ function renderReporte(){
             <tfoot>
               <tr class="row-prom"><td>▸ Promedio sede</td>${promSedeRow}<td>${fmtM(promAnio)}</td></tr>
               <tr class="row-pac"><td style="color:var(--text2)">👥 Prom. pacientes</td>${pacRow}<td>—</td></tr>
-              ${sv?`<tr class="${sv.cls==='svc-urg'?'row-urg-u':'row-urg-p'}"><td>⚕ ${sv.lbl}</td>${urgRow}<td>—</td></tr>`:''}
+
               <tr class="row-total"><td>■ Total facturado sede</td>${totRow}<td>${fmtM(totAnio)}</td></tr>
             </tfoot>
           </table>
@@ -819,11 +824,11 @@ function renderReporte(){
       const pr=mp.map(m=>{const ms=mR.filter(r=>r.medico===m);return ms.reduce((a,r)=>a+(r.valor||0),0)/ms.length;});
       return Math.round(pr.reduce((a,b)=>a+b,0)/pr.length);
     });
-    const urgD=mesConDatos.map(mk=>{const u=U.find(x=>x.periodo===mk);return u?.valor||null;});
+
     const totD=mesConDatos.map(mk=>{const t=T.find(x=>x.periodo===mk);return t?.total_facturado||null;});
     const mLbl=mesConDatos.map(mk=>{const[,m]=mk.split('-');return MESES[parseInt(m)-1].slice(0,3);});
     const ds=[{label:'Prom. médicos',data:evolD,borderColor:col,backgroundColor:col+'18',borderWidth:2,tension:.3,fill:true,pointRadius:3}];
-    if(urgD.some(v=>v))ds.push({label:sv?.lbl||'Servicio',data:urgD,borderColor:sv?.cls==='svc-urg'?'#c0392b':'#b45309',backgroundColor:'transparent',borderWidth:1.5,borderDash:[4,3],tension:.3,pointRadius:2});
+
     if(totD.some(v=>v))ds.push({label:'Total sede',data:totD,borderColor:'#1e2130',backgroundColor:'transparent',borderWidth:1.5,borderDash:[2,2],tension:.3,pointRadius:2});
     new Chart(ctx1,{type:'line',data:{labels:mLbl,datasets:ds},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#555a72',font:{size:10},boxWidth:10,padding:8}}},scales:{y:{ticks:{callback:v=>{if(Math.abs(v)>=1000000000)return'$'+(v/1000000000).toFixed(1)+'B';return'$'+(v/1000000).toFixed(0)+'M';},color:'#8b90a8',font:{size:10}},grid:{color:'rgba(0,0,0,0.05)'},border:{display:false}},x:{ticks:{color:'#8b90a8',font:{size:10}},grid:{display:false}}}}});
   }
@@ -902,7 +907,7 @@ function cargarForm(){
   if(!meds.length){document.getElementById('form-wrap').innerHTML=`<div class="empty"><div class="empty-ico">👨‍⚕️</div><div class="empty-txt">Sin médicos para <strong>${sede}</strong>.</div></div>`;return;}
   const[y,mo]=periodo.split('-');const mesN=MESES[parseInt(mo)-1];
   const sv=SVC[sede];
-  const urgReg=ST.urgencias.find(u=>u.sede===sede&&u.periodo===periodo);
+
   const totReg=ST.totales.find(t=>t.sede===sede&&t.periodo===periodo);
 
   const filas=meds.map(med=>{
@@ -915,8 +920,8 @@ function cargarForm(){
       <td class="tc">${varH}</td></tr>`;
   }).join('');
 
-  const urgCls=sv?.cls==='svc-urg'?'urg-row-u':'urg-row-p';
-  const urgColor=sv?.color||'var(--amber)';
+
+
 
   document.getElementById('form-wrap').innerHTML=`
     <div class="card">
@@ -928,15 +933,10 @@ function cargarForm(){
         <table class="etbl">
           <thead><tr><th style="width:35%">Médico</th><th style="width:26%">Promedio facturación ($)</th><th style="width:20%">N° pacientes</th><th style="width:19%;text-align:center">Var. mes anterior</th></tr></thead>
           <tbody>${filas}</tbody>
-          ${sv?`<tr class="${urgCls}"><td colspan="4" style="padding:10px 14px">
-            <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-              <span style="font-size:13px;font-weight:600;color:${urgColor};flex:1">⚕ ${sv.lbl} — valor total del servicio para la sede este mes</span>
-              <input type="number" id="urg-val" placeholder="0" min="0" value="${urgReg?.valor||''}" style="max-width:200px;font-family:var(--mono)" oninput="calcTot()">
-            </div>
-          </td></tr>`:''}
+
           <tr class="${sv?'':'etbl-sep'}"><td colspan="4" style="padding:10px 14px;background:var(--bg-card2);border:1px solid var(--border)">
             <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-              <span style="font-size:13px;font-weight:600;color:var(--accent);flex:1">📊 Total facturado sede este mes (valor real de facturación)</span>
+              <span style="font-size:13px;font-weight:600;color:var(--accent);flex:1">📊 Total facturado ${SVC[sede]?.lbl||"servicio"} — valor real del mes para la sede</span>
               <input type="number" id="tot-val" placeholder="0" min="0" value="${totReg?.total_facturado||''}" style="max-width:200px;font-family:var(--mono)">
             </div>
           </td></tr>
@@ -970,16 +970,16 @@ async function guardarMes(){
     const pac=parseInt(document.querySelector(`.pi[data-med="${med}"]`)?.value)||0;
     rows.push({sede,medico:med,periodo,valor,pacientes:pac});
   });
-  const urgVal=parseFloat(document.getElementById('urg-val')?.value)||0;
+  const urgVal=0;
   const totVal=parseFloat(document.getElementById('tot-val')?.value)||0;
   if(!rows.length&&!urgVal&&!totVal){toast('No hay valores para guardar',true);return;}
   loader(true,'Guardando en Supabase...');
   try{
     if(rows.length)await sbU('registros',rows);
-    if(urgVal>0)await sbU('urgencias',[{sede,periodo,valor:urgVal}]);
+
     if(totVal>0)await sbU('totales_sede',[{sede,periodo,total_facturado:totVal}]);
     await loadAll();
-    toast(`✓ Guardado — ${rows.length} médicos${urgVal>0?' · '+SVC[sede]?.lbl:''}${totVal>0?' · Total sede':''}`);
+    toast(`✓ Guardado — ${rows.length} médicos${totVal>0?' · Total sede':''}`);
     cargarForm();
   }catch(e){toast('Error: '+e.message,true);}
   finally{loader(false);}
@@ -1035,6 +1035,9 @@ async function delMedico(n,s){if(!confirm(`¿Eliminar ${n}?`))return;loader(true
 // INIT
 // ═══════════════════════════════
 loadAll().then(ok=>{if(ok)renderResumen();});
+// Init number format toggle state
+(function(){const f=localStorage.getItem('ips_numfmt')||'corto';NUM_FORMAT=f;
+  setTimeout(()=>setNumFormat(f),100);})();
 </script>
 </body>
 </html>
