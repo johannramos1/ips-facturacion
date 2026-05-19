@@ -277,7 +277,7 @@ select option{background:var(--bg-card)}
       <div style="width:44px;height:44px;background:var(--accent);border-radius:10px;display:flex;align-items:center;justify-content:center;margin:0 auto 1rem">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
       </div>
-      <div style="font-size:18px;font-weight:600;color:var(--text)">IPS Control</div>
+      <div style="font-size:18px;font-weight:600;color:var(--text)">Gestión IPS</div>
       <div style="font-size:12px;color:var(--text3);margin-top:3px">Valle del Cauca — Acceso restringido</div>
     </div>
     <div class="fg">
@@ -303,14 +303,14 @@ select option{background:var(--bg-card)}
   <div class="brand">
     <div class="brand-mark">
       <div class="brand-ico"><svg viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></div>
-      <span class="brand-name">IPS Control</span>
+      <span class="brand-name">Gestión IPS</span>
     </div>
     <div class="brand-sub">Valle del Cauca</div>
   </div>
   <div class="nav-sect">Principal</div>
   <div class="nav-item active" onclick="nav('resumen',this)">
     <svg class="nav-icon" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
-    Resumen general
+    Indicadores de medicina general
   </div>
   <div class="nav-item" onclick="nav('reporte',this)">
     <svg class="nav-icon" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
@@ -348,7 +348,7 @@ select option{background:var(--bg-card)}
 <!-- RESUMEN -->
 <div class="page active" id="page-resumen">
   <div class="ph">
-    <div><div class="ph-title">Resumen general</div><div class="ph-sub">Vista consolidada por sede y médico</div></div>
+    <div><div class="ph-title">Indicadores de medicina general</div><div class="ph-sub">Vista consolidada de facturación e indicadores por sede y médico</div></div>
     <div class="ph-right">
       <div class="fg" style="margin:0"><label>Período</label><select id="r-per" onchange="renderResumen()"><option value="todos">Todos</option></select></div>
       <div class="fg" style="margin:0"><label>Año</label><select id="r-anio" onchange="onAnioChange()"><option value="todos">Todos</option><option value="2024">2024</option><option value="2025">2025</option><option value="2026" selected>2026</option></select></div>
