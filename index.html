@@ -1091,7 +1091,7 @@ async function delMedico(n,s){if(!confirm(`¿Eliminar ${n}?`))return;loader(true
 // ═══════════════════════════════
 // INIT
 // ═══════════════════════════════
-checkLogin();
+window.addEventListener('load', checkLogin);
 
 // ═══════════════════════════════
 // AUTH
@@ -1099,13 +1099,17 @@ checkLogin();
 let SESSION_USER = null;
 
 async function checkLogin(){
-  const saved = sessionStorage.getItem('ips_session');
-  if(saved){
-    SESSION_USER = JSON.parse(saved);
-    document.getElementById('login-screen').style.display='none';
-    document.querySelector('.shell').style.display='flex';
-    return;
-  }
+  try{
+    const saved = sessionStorage.getItem('ips_session');
+    if(saved){
+      SESSION_USER = JSON.parse(saved);
+      document.getElementById('login-screen').style.display='none';
+      document.querySelector('.shell').style.display='flex';
+      await loadAll();
+      renderResumen();
+      return;
+    }
+  }catch(e){}
   document.getElementById('login-screen').style.display='flex';
   document.querySelector('.shell').style.display='none';
 }
@@ -1118,7 +1122,7 @@ async function doLogin(){
   if(!user||!pass){err.textContent='Complete usuario y contraseña.';err.style.display='block';return;}
   btn.textContent='Verificando...';btn.disabled=true;
   try{
-    const rows = await sbG('usuarios','usuario=eq.'+encodeURIComponent(user)+'&activo=eq.true&select=id,nombre,usuario,clave');
+    const rows = await sbG('usuarios','usuario=eq.'+encodeURIComponent(user)+'&activo=eq.true');
     const ok = rows.length>0 && rows[0].clave===pass;
     // Log acceso
     await sbU('accesos_log',[{usuario:user,exitoso:ok}]);
@@ -1127,9 +1131,9 @@ async function doLogin(){
       sessionStorage.setItem('ips_session',JSON.stringify(SESSION_USER));
       document.getElementById('login-screen').style.display='none';
       document.querySelector('.shell').style.display='flex';
-      // Add username to statusbar
-      document.getElementById('slast').textContent='Usuario: '+rows[0].nombre;
-      await loadAll();renderResumen();
+      document.getElementById('slast').textContent='👤 '+rows[0].nombre;
+      await loadAll();
+      renderResumen();
     }else{
       err.textContent='Usuario o contraseña incorrectos.';err.style.display='block';
       document.getElementById('login-pass').value='';
@@ -1236,8 +1240,7 @@ async function cargarLog(){
 }
 
 // Init number format toggle state
-(function(){const f=localStorage.getItem('ips_numfmt')||'corto';NUM_FORMAT=f;
-  setTimeout(()=>setNumFormat(f),100);})();
+window.addEventListener('load',function(){const f=localStorage.getItem('ips_numfmt')||'corto';NUM_FORMAT=f;setTimeout(()=>setNumFormat(f),300);});
 </script>
 </body>
 </html>
