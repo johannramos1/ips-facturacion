@@ -462,6 +462,37 @@ select option{background:var(--bg-card)}
   </div>
 </div>
 
+    <!-- USUARIOS Y LOG -->
+    <div class="card" style="margin-top:14px;margin-left:2rem;margin-right:2rem;margin-bottom:14px">
+      <div class="card-head">
+        <span class="card-label">Gestión de usuarios</span>
+        <button class="btn btn-primary btn-sm" onclick="showAddUser()">+ Nuevo usuario</button>
+      </div>
+      <div class="card-body">
+        <div id="add-user-form" style="display:none;background:var(--bg-card2);border:1px solid var(--border);border-radius:var(--r-sm);padding:1rem;margin-bottom:1rem">
+          <div class="fr3">
+            <div class="fg" style="margin-bottom:8px"><label>Nombre completo</label><input type="text" id="nu-nombre" placeholder="Ej: Dr. Gerente"></div>
+            <div class="fg" style="margin-bottom:8px"><label>Usuario</label><input type="text" id="nu-user" placeholder="Ej: gerencia"></div>
+            <div class="fg" style="margin-bottom:8px"><label>Contraseña</label><input type="password" id="nu-pass" placeholder="Mínimo 4 caracteres"></div>
+          </div>
+          <div class="btn-group">
+            <button class="btn btn-primary btn-sm" onclick="crearUsuario()">Guardar usuario</button>
+            <button class="btn btn-ghost btn-sm" onclick="document.getElementById('add-user-form').style.display='none'">Cancelar</button>
+          </div>
+        </div>
+        <div id="lista-usuarios"></div>
+      </div>
+    </div>
+    <div class="card" style="margin:0 2rem 14px">
+      <div class="card-head">
+        <span class="card-label">Log de accesos</span>
+        <button class="btn btn-ghost btn-sm" onclick="cargarLog()">↻ Actualizar</button>
+      </div>
+      <div class="card-body">
+        <div id="accesos-log"><div class="empty"><div class="empty-txt">Haga clic en Actualizar para ver los accesos</div></div></div>
+      </div>
+    </div>
+
 </main>
 </div>
 </div>
@@ -1044,38 +1075,6 @@ function exportCSV(){
 // ═══════════════════════════════
 // CONFIG
 // ═══════════════════════════════
-
-    <div class="card" style="margin-top:14px">
-      <div class="card-head">
-        <span class="card-label">Gestión de usuarios</span>
-        <button class="btn btn-primary btn-sm" onclick="showAddUser()">+ Nuevo usuario</button>
-      </div>
-      <div class="card-body">
-        <div id="add-user-form" style="display:none;background:var(--bg-card2);border:1px solid var(--border);border-radius:var(--r-sm);padding:1rem;margin-bottom:1rem">
-          <div class="fr3">
-            <div class="fg" style="margin-bottom:8px"><label>Nombre completo</label><input type="text" id="nu-nombre" placeholder="Ej: Dr. Gerente"></div>
-            <div class="fg" style="margin-bottom:8px"><label>Usuario</label><input type="text" id="nu-user" placeholder="Ej: gerencia"></div>
-            <div class="fg" style="margin-bottom:8px"><label>Contraseña</label><input type="password" id="nu-pass" placeholder="Mínimo 4 caracteres"></div>
-          </div>
-          <div class="btn-group">
-            <button class="btn btn-primary btn-sm" onclick="crearUsuario()">Guardar usuario</button>
-            <button class="btn btn-ghost btn-sm" onclick="document.getElementById('add-user-form').style.display='none'">Cancelar</button>
-          </div>
-        </div>
-        <div id="lista-usuarios"></div>
-      </div>
-    </div>
-
-    <div class="card" style="margin-top:14px">
-      <div class="card-head">
-        <span class="card-label">Log de accesos</span>
-        <button class="btn btn-ghost btn-sm" onclick="cargarLog()">↻ Actualizar</button>
-      </div>
-      <div class="card-body">
-        <div id="accesos-log"><div class="empty"><div class="empty-txt">Haga clic en Actualizar para ver los accesos</div></div></div>
-      </div>
-    </div>
-
 async function saveConfig(k,v){await sbP('configuracion','clave=eq.'+k,{valor:JSON.stringify(v)});}
 function renderConfig(){
   fillSelects();cargarUsuarios();
