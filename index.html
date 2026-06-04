@@ -508,7 +508,7 @@ const SB='https://qzpgqmcnluperbivnpku.supabase.co';
 const SK='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF6cGdxbWNubHVwZXJiaXZucGt1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg5MjQ4NDUsImV4cCI6MjA5NDUwMDg0NX0.V0KnX_v2n2VcDWdNYmowo4Xmg_fGNQ1xL5u6tYGl9Tc';
 const H={'Content-Type':'application/json','apikey':SK,'Authorization':'Bearer '+SK,'Prefer':'return=representation'};
 async function sbG(t,q=''){const r=await fetch(SB+'/rest/v1/'+t+'?'+q,{headers:H});if(!r.ok)throw new Error(await r.text());const x=await r.text();return x?JSON.parse(x):[];}
-async function sbU(t,b){const r=await fetch(SB+'/rest/v1/'+t,{method:'POST',headers:{...H,'Prefer':'resolution=merge-duplicates,return=representation'},body:JSON.stringify(b)});if(!r.ok)throw new Error(await r.text());const x=await r.text();return x?JSON.parse(x):[];}
+async function sbU(t,b,conflict=''){const qs=conflict?'?on_conflict='+conflict:'';const r=await fetch(SB+'/rest/v1/'+t+qs,{method:'POST',headers:{...H,'Prefer':'resolution=merge-duplicates,return=representation'},body:JSON.stringify(b)});if(!r.ok)throw new Error(await r.text());const x=await r.text();return x?JSON.parse(x):[];}
 async function sbD(t,q){await fetch(SB+'/rest/v1/'+t+'?'+q,{method:'DELETE',headers:H});}
 async function sbP(t,q,b){const r=await fetch(SB+'/rest/v1/'+t+'?'+q,{method:'PATCH',headers:H,body:JSON.stringify(b)});if(!r.ok)throw new Error(await r.text());}
 
@@ -810,7 +810,7 @@ function renderReporte(){
     const proms=medsP.map(m=>{const mrs=mR.filter(r=>r.medico===m);return mrs.reduce((a,r)=>a+(r.valor||0),0)/mrs.length;});
     const pp=proms.reduce((a,b)=>a+b,0)/proms.length;
     const prevMk=prevP(mk);
-    const prevMR=R.filter(r=>r.periodo===prevMk&&r.valor);
+    const prevMR=ST.registros.filter(r=>r.sede===sede&&r.periodo===prevMk&&r.valor);
     let varProm=null;
     if(prevMR.length){const prevMeds=[...new Set(prevMR.map(r=>r.medico))];const prevProms=prevMeds.map(m=>{const mrs=prevMR.filter(r=>r.medico===m);return mrs.reduce((a,r)=>a+(r.valor||0),0)/mrs.length;});const prevPP=prevProms.reduce((a,b)=>a+b,0)/prevProms.length;varProm=(pp-prevPP)/prevPP;}
     return`<td><div>${fmtM(pp)}</div><div style="margin-top:1px">${vPill(varProm)}</div></td>`;
@@ -1033,9 +1033,8 @@ async function guardarMes(){
   if(!rows.length&&!urgVal&&!totVal){toast('No hay valores para guardar',true);return;}
   loader(true,'Guardando en Supabase...');
   try{
-    if(rows.length)await sbU('registros',rows);
-
-    if(totVal>0)await sbU('totales_sede',[{sede,periodo,total_facturado:totVal}]);
+    if(rows.length)await sbU('registros',rows,'sede,medico,periodo');
+    if(totVal>0)await sbU('totales_sede',[{sede,periodo,total_facturado:totVal}],'sede,periodo');
     await loadAll();
     toast(`✓ Guardado — ${rows.length} médicos${totVal>0?' · Total sede':''}`);
     cargarForm();
