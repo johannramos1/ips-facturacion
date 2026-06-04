@@ -454,6 +454,7 @@ select option{background:var(--bg-card)}
             <div class="fg"><label>Sede</label><select id="c-msede"></select></div>
           </div>
           <button class="btn btn-primary btn-sm" onclick="addMedico()">Agregar médico</button>
+          <p style="font-size:11px;color:var(--text3);margin-top:8px">Los médicos <strong>activos</strong> aparecen en el formulario de <strong>Registrar mes</strong>. Deshabilitar o eliminar un médico <strong>nunca borra sus datos históricos</strong>.</p>
           <div class="divider"></div>
           <div id="lista-medicos"></div>
         </div>
@@ -773,7 +774,8 @@ function renderReporte(){
   const R=ST.registros.filter(r=>r.sede===sede&&r.periodo.startsWith(anio));
   const U=ST.urgencias.filter(u=>u.sede===sede&&u.periodo.startsWith(anio));
   const T=ST.totales.filter(t=>t.sede===sede&&t.periodo.startsWith(anio));
-  const meds=[...new Set(ST.medicos.filter(m=>m.s===sede).map(m=>m.n))].sort();
+  // Médicos derivados de registros reales (no de config) para preservar históricos
+  const meds=[...new Set(R.map(r=>r.medico))].sort();
   const mesKeys=MESES.map((_,i)=>anio+'-'+String(i+1).padStart(2,'0'));
   const mesConDatos=mesKeys.filter(mk=>R.some(r=>r.periodo===mk)||T.some(t=>t.periodo===mk));
   const sv=SVC[sede];const col=sCol(sede);
@@ -959,7 +961,7 @@ function cargarForm(){
   const sede=document.getElementById('reg-sede')?.value;
   const periodo=document.getElementById('reg-periodo')?.value;
   if(!sede||!periodo){document.getElementById('form-wrap').innerHTML='<div class="empty"><div class="empty-ico">📋</div><div class="empty-txt">Seleccione sede y período</div></div>';return;}
-  const meds=ST.medicos.filter(m=>m.s===sede);
+  const meds=ST.medicos.filter(m=>m.s===sede&&m.activo!==false);
   if(!meds.length){document.getElementById('form-wrap').innerHTML=`<div class="empty"><div class="empty-ico">👨‍⚕️</div><div class="empty-txt">Sin médicos para <strong>${sede}</strong>.</div></div>`;return;}
   const[y,mo]=periodo.split('-');const mesN=MESES[parseInt(mo)-1];
   const sv=SVC[sede];
@@ -1079,13 +1081,90 @@ async function saveConfig(k,v){await sbP('configuracion','clave=eq.'+k,{valor:JS
 function renderConfig(){
   fillSelects();cargarUsuarios();
   document.getElementById('lista-sedes').innerHTML=ST.sedes.map(s=>`<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)"><span>${sBadge(s)} <span style="font-size:13px;margin-left:4px">${s}</span></span><button class="btn btn-ghost btn-sm" onclick="delSede('${s}')">✕</button></div>`).join('');
-  const bS={};ST.sedes.forEach(s=>bS[s]=[]);ST.medicos.forEach(m=>{if(bS[m.s])bS[m.s].push(m);});
-  document.getElementById('lista-medicos').innerHTML=ST.sedes.map(s=>`<div style="margin-bottom:12px"><div style="font-size:10px;font-weight:600;letter-spacing:.07em;color:var(--text3);margin-bottom:6px;text-transform:uppercase">${s}</div>${(bS[s]||[]).map(m=>`<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 10px;background:var(--bg-card2);border-radius:var(--r-sm);margin-bottom:3px;border:1px solid var(--border)"><span style="font-size:13px">${m.n}</span><button class="btn btn-ghost btn-sm" onclick="delMedico('${m.n}','${m.s}')">✕</button></div>`).join('')||'<div style="font-size:12px;color:var(--text3)">Sin médicos</div>'}</div>`).join('');
+
+  // Agrupar médicos por sede, separando activos e inactivos
+  const bS={};ST.sedes.forEach(s=>bS[s]={activos:[],inactivos:[]});
+  ST.medicos.forEach(m=>{
+    const bucket=(m.activo===false)?'inactivos':'activos';
+    if(bS[m.s])bS[m.s][bucket].push(m);
+  });
+
+  document.getElementById('lista-medicos').innerHTML=ST.sedes.map(s=>{
+    const {activos,inactivos}=bS[s]||{activos:[],inactivos:[]};
+    const rowActivo=m=>`<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 10px;background:var(--bg-card2);border-radius:var(--r-sm);margin-bottom:3px;border:1px solid var(--border)">
+      <span style="font-size:13px">${m.n}</span>
+      <div class="btn-group" style="gap:5px">
+        <button class="btn btn-ghost btn-sm" style="font-size:11px;color:var(--amber)" onclick="toggleMedico('${m.n}','${m.s}',false)" title="Deshabilitar">Deshabilitar</button>
+        <button class="btn btn-danger btn-sm" style="font-size:11px" onclick="eliminarMedico('${m.n}','${m.s}')" title="Eliminar definitivo">✕</button>
+      </div></div>`;
+    const rowInactivo=m=>`<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 10px;background:var(--bg-card2);border-radius:var(--r-sm);margin-bottom:3px;border:1px solid var(--border);opacity:.75">
+      <span style="font-size:13px;color:var(--text3)">${m.n}</span>
+      <div class="btn-group" style="gap:5px">
+        <button class="btn btn-sm" style="font-size:11px;color:var(--green);border-color:var(--green);background:var(--green-light)" onclick="toggleMedico('${m.n}','${m.s}',true)" title="Activar">Activar</button>
+        <button class="btn btn-danger btn-sm" style="font-size:11px" onclick="eliminarMedico('${m.n}','${m.s}')" title="Eliminar definitivo">✕</button>
+      </div></div>`;
+
+    const inactivosHtml=inactivos.length?`
+      <div style="margin-top:8px">
+        <button class="btn btn-ghost btn-sm" style="font-size:11px;width:100%;justify-content:space-between;color:var(--text3)" onclick="toggleInactivos('${s}',this)">
+          <span>▶ Inactivos (${inactivos.length})</span>
+        </button>
+        <div id="inactivos-${s.replace(/ /g,'_')}" style="display:none;margin-top:4px">${inactivos.map(rowInactivo).join('')}</div>
+      </div>`:'';
+
+    return`<div style="margin-bottom:14px">
+      <div style="font-size:10px;font-weight:600;letter-spacing:.07em;color:var(--text3);margin-bottom:6px;text-transform:uppercase">${s}</div>
+      ${activos.map(rowActivo).join('')||'<div style="font-size:12px;color:var(--text3);padding:4px 0">Sin médicos activos</div>'}
+      ${inactivosHtml}
+    </div>`;
+  }).join('');
 }
+
+function toggleInactivos(sede,btn){
+  const id='inactivos-'+sede.replace(/ /g,'_');
+  const el=document.getElementById(id);
+  if(!el)return;
+  const open=el.style.display==='block';
+  el.style.display=open?'none':'block';
+  btn.querySelector('span').textContent=open?`▶ Inactivos (${el.children.length})`:`▼ Inactivos (${el.children.length})`;
+}
+
+async function addMedico(){
+  const n=document.getElementById('c-mnom').value.trim().toUpperCase();
+  const s=document.getElementById('c-msede').value;
+  if(!n||!s){toast('Complete nombre y sede',true);return;}
+  if(ST.medicos.find(m=>m.n===n&&m.s===s)){toast('Ya existe',true);return;}
+  loader(true);
+  try{ST.medicos.push({n,s,activo:true});await saveConfig('medicos',ST.medicos);document.getElementById('c-mnom').value='';toast('Médico agregado');renderConfig();}
+  catch(e){ST.medicos.pop();toast('Error',true);}
+  finally{loader(false);}
+}
+
+async function toggleMedico(n,s,activo){
+  loader(true);
+  try{
+    const m=ST.medicos.find(x=>x.n===n&&x.s===s);
+    if(m)m.activo=activo;
+    await saveConfig('medicos',ST.medicos);
+    toast(activo?`${n} activado`:`${n} deshabilitado`);
+    renderConfig();
+  }catch(e){toast('Error',true);}
+  finally{loader(false);}
+}
+
+async function eliminarMedico(n,s){
+  if(!confirm(`¿Eliminar a ${n} de la lista?\n\nSus datos históricos NO se borran — seguirán en reportes e historial.`))return;
+  loader(true);
+  try{ST.medicos=ST.medicos.filter(m=>!(m.n===n&&m.s===s));await saveConfig('medicos',ST.medicos);toast('Médico eliminado de la lista');renderConfig();}
+  catch(e){toast('Error',true);}
+  finally{loader(false);}
+}
+
+// delMedico legacy — redirige a eliminarMedico para compatibilidad
+async function delMedico(n,s){await eliminarMedico(n,s);}
+
 async function addSede(){const v=document.getElementById('c-sede').value.trim().toUpperCase();if(!v){toast('Escriba un nombre',true);return;}if(ST.sedes.includes(v)){toast('Ya existe',true);return;}loader(true);try{ST.sedes.push(v);await saveConfig('sedes',ST.sedes);document.getElementById('c-sede').value='';toast('Sede agregada');renderConfig();fillSelects();}catch(e){ST.sedes.pop();toast('Error: '+e.message,true);}finally{loader(false);}}
 async function delSede(s){if(!confirm(`¿Eliminar "${s}"?`))return;loader(true);try{ST.sedes=ST.sedes.filter(x=>x!==s);await saveConfig('sedes',ST.sedes);toast('Sede eliminada');renderConfig();fillSelects();}catch(e){toast('Error',true);}finally{loader(false);}}
-async function addMedico(){const n=document.getElementById('c-mnom').value.trim().toUpperCase();const s=document.getElementById('c-msede').value;if(!n||!s){toast('Complete nombre y sede',true);return;}if(ST.medicos.find(m=>m.n===n&&m.s===s)){toast('Ya existe',true);return;}loader(true);try{ST.medicos.push({n,s});await saveConfig('medicos',ST.medicos);document.getElementById('c-mnom').value='';toast('Médico agregado');renderConfig();}catch(e){ST.medicos.pop();toast('Error',true);}finally{loader(false);}}
-async function delMedico(n,s){if(!confirm(`¿Eliminar ${n}?`))return;loader(true);try{ST.medicos=ST.medicos.filter(m=>!(m.n===n&&m.s===s));await saveConfig('medicos',ST.medicos);toast('Médico eliminado');renderConfig();}catch(e){toast('Error',true);}finally{loader(false);}}
 
 // ═══════════════════════════════
 // INIT
