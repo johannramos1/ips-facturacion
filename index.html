@@ -584,9 +584,9 @@ function fillSelects(){
   ['h-sede','reg-sede','c-msede','rp-sede'].forEach(id=>{
     const el=document.getElementById(id);if(!el)return;
     const cur=el.value;const withAll=id==='h-sede';
-    el.innerHTML=withAll?'<option value="todas">Todas</option>':'<option value="">Seleccionar...</option>';
-    ST.sedes.forEach(s=>el.innerHTML+=`<option value="${s}">${s}</option>`);
-    if(cur)el.value=cur;
+    const opts=(withAll?'<option value="todas">Todas</option>':'<option value="">Seleccionar...</option>')+ST.sedes.map(s=>`<option value="${s}">${s}</option>`).join('');
+    el.innerHTML=opts;
+    if(cur&&[...el.options].some(o=>o.value===cur))el.value=cur;
   });
 }
 function fillPeriodos(){
@@ -956,6 +956,7 @@ function initRegistrar(){
   fillSelects();
   const p=document.getElementById('reg-periodo');
   if(p&&!p.value){const n=new Date();p.value=n.getFullYear()+'-'+String(n.getMonth()+1).padStart(2,'0');}
+  cargarForm();
 }
 function cargarForm(){
   const sede=document.getElementById('reg-sede')?.value;
