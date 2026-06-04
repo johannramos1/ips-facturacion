@@ -568,6 +568,12 @@ async function loadAll(){
     ST.registros=regs;ST.urgencias=[];ST.totales=tots;
     const sr=cfgs.find(c=>c.clave==='sedes'),mr=cfgs.find(c=>c.clave==='medicos');
     ST.sedes=sr?sr.valor:[];ST.medicos=mr?mr.valor:[];
+    // Auto-recuperacion: si medicos esta vacio, reconstruir desde registros y guardar
+    if(!ST.medicos.length&&ST.registros.length){
+      const uniq=[...new Map(ST.registros.map(r=>[r.sede+'|'+r.medico,{n:r.medico,s:r.sede,activo:true}])).values()].sort((a,b)=>a.s.localeCompare(b.s)||a.n.localeCompare(b.n));
+      ST.medicos=uniq;
+      sbP('configuracion','clave=eq.medicos',{valor:JSON.stringify(uniq)}).catch(()=>{});
+    }
     ST.loaded=true;
     setStatus(true,'Conectado · Supabase');
     fillSelects();fillPeriodos();
