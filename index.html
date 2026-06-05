@@ -572,7 +572,7 @@ async function loadAll(){
     if(!ST.medicos.length&&ST.registros.length){
       const uniq=[...new Map(ST.registros.map(r=>[r.sede+'|'+r.medico,{n:r.medico,s:r.sede,activo:true}])).values()].sort((a,b)=>a.s.localeCompare(b.s)||a.n.localeCompare(b.n));
       ST.medicos=uniq;
-      sbP('configuracion','clave=eq.medicos',{valor:JSON.stringify(uniq)}).catch(()=>{});
+      try{await sbP('configuracion','clave=eq.medicos',{valor:JSON.stringify(uniq)});}catch(e){console.warn('Auto-recuperacion: no se pudo guardar config medicos',e);}
     }
     ST.loaded=true;
     setStatus(true,'Conectado · Supabase');
@@ -822,11 +822,11 @@ function renderReporte(){
     return`<td><div>${fmtM(pp)}</div><div style="margin-top:1px">${vPill(varProm)}</div></td>`;
   }).join('');
 
-  // Fila pacientes promedio
+  // Fila pacientes — suma total del mes
   const pacRow=mesConDatos.map(mk=>{
     const mR=R.filter(r=>r.periodo===mk&&r.pacientes);
     if(!mR.length)return`<td class="cell-na">—</td>`;
-    return`<td>${Math.round(mR.reduce((a,r)=>a+(r.pacientes||0),0)/mR.length)}</td>`;
+    return`<td>${mR.reduce((a,r)=>a+(r.pacientes||0),0).toLocaleString('es-CO')}</td>`;
   }).join('');
 
   const urgRow='';
@@ -859,7 +859,7 @@ function renderReporte(){
             <tbody>${medRows}</tbody>
             <tfoot>
               <tr class="row-prom"><td>▸ Promedio sede</td>${promSedeRow}<td>${fmtM(promAnio)}</td></tr>
-              <tr class="row-pac"><td style="color:var(--text2)">👥 Prom. pacientes</td>${pacRow}<td>—</td></tr>
+              <tr class="row-pac"><td style="color:var(--text2)">👥 Total pacientes</td>${pacRow}<td>—</td></tr>
 
               <tr class="row-total"><td>■ Total facturado sede</td>${totRow}<td>${fmtM(totAnio)}</td></tr>
             </tfoot>
@@ -964,10 +964,14 @@ function initRegistrar(){
   if(p&&!p.value){const n=new Date();p.value=n.getFullYear()+'-'+String(n.getMonth()+1).padStart(2,'0');}
   cargarForm();
 }
+let _lastRegSede='';
 function cargarForm(){
   const sede=document.getElementById('reg-sede')?.value;
   const periodo=document.getElementById('reg-periodo')?.value;
-  if(!sede||!periodo){document.getElementById('form-wrap').innerHTML='<div class="empty"><div class="empty-ico">📋</div><div class="empty-txt">Seleccione sede y período</div></div>';return;}
+  if(!sede||!periodo){document.getElementById('form-wrap').innerHTML='<div class="empty"><div class="empty-ico">📋</div><div class="empty-txt">Seleccione sede y período</div></div>';_lastRegSede='';return;}
+  // Si cambió la sede, limpiar form sin preguntar
+  if(_lastRegSede&&_lastRegSede!==sede){_lastRegSede=sede;}
+  else{_lastRegSede=sede;}
   const meds=ST.medicos.filter(m=>m.s===sede&&m.activo!==false);
   if(!meds.length){document.getElementById('form-wrap').innerHTML=`<div class="empty"><div class="empty-ico">👨‍⚕️</div><div class="empty-txt">Sin médicos para <strong>${sede}</strong>.</div></div>`;return;}
   const[y,mo]=periodo.split('-');const mesN=MESES[parseInt(mo)-1];
@@ -1100,12 +1104,14 @@ function renderConfig(){
     const rowActivo=m=>`<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 10px;background:var(--bg-card2);border-radius:var(--r-sm);margin-bottom:3px;border:1px solid var(--border)">
       <span style="font-size:13px">${m.n}</span>
       <div class="btn-group" style="gap:5px">
+        <button class="btn btn-ghost btn-sm" style="font-size:11px" onclick="editarMedico('${m.n}','${m.s}')" title="Editar nombre">✏</button>
         <button class="btn btn-ghost btn-sm" style="font-size:11px;color:var(--amber)" onclick="toggleMedico('${m.n}','${m.s}',false)" title="Deshabilitar">Deshabilitar</button>
         <button class="btn btn-danger btn-sm" style="font-size:11px" onclick="eliminarMedico('${m.n}','${m.s}')" title="Eliminar definitivo">✕</button>
       </div></div>`;
     const rowInactivo=m=>`<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 10px;background:var(--bg-card2);border-radius:var(--r-sm);margin-bottom:3px;border:1px solid var(--border);opacity:.75">
       <span style="font-size:13px;color:var(--text3)">${m.n}</span>
       <div class="btn-group" style="gap:5px">
+        <button class="btn btn-ghost btn-sm" style="font-size:11px" onclick="editarMedico('${m.n}','${m.s}')" title="Editar nombre">✏</button>
         <button class="btn btn-sm" style="font-size:11px;color:var(--green);border-color:var(--green);background:var(--green-light)" onclick="toggleMedico('${m.n}','${m.s}',true)" title="Activar">Activar</button>
         <button class="btn btn-danger btn-sm" style="font-size:11px" onclick="eliminarMedico('${m.n}','${m.s}')" title="Eliminar definitivo">✕</button>
       </div></div>`;
@@ -1168,6 +1174,31 @@ async function eliminarMedico(n,s){
 
 // delMedico legacy — redirige a eliminarMedico para compatibilidad
 async function delMedico(n,s){await eliminarMedico(n,s);}
+
+async function editarMedico(n,s){
+  const nuevo=prompt(`Editar nombre del médico en ${s}:\n\nNombre actual: ${n}\nNuevo nombre:`,n);
+  if(!nuevo||nuevo.trim()===n)return;
+  const nuevoN=nuevo.trim().toUpperCase();
+  if(ST.medicos.find(m=>m.n===nuevoN&&m.s===s)){toast('Ya existe un médico con ese nombre en esta sede',true);return;}
+  loader(true,'Actualizando nombre y registros históricos...');
+  try{
+    // 1. Actualizar en ST.medicos y guardar en configuracion
+    const m=ST.medicos.find(x=>x.n===n&&x.s===s);
+    if(m)m.n=nuevoN;
+    await saveConfig('medicos',ST.medicos);
+    // 2. Actualizar todos los registros históricos con el nombre viejo en esta sede
+    // Supabase no soporta UPDATE con filtro multiple directo via REST bulk,
+    // lo hacemos registro a registro sobre los afectados en ST.registros
+    const afectados=ST.registros.filter(r=>r.medico===n&&r.sede===s);
+    for(const r of afectados){
+      await sbP('registros',`medico=eq.${encodeURIComponent(n)}&sede=eq.${encodeURIComponent(s)}&periodo=eq.${r.periodo}`,{medico:nuevoN});
+    }
+    await loadAll();
+    toast(`✓ Nombre actualizado y ${afectados.length} registro(s) histórico(s) corregidos`);
+    renderConfig();
+  }catch(e){toast('Error: '+e.message,true);}
+  finally{loader(false);}
+}
 
 async function addSede(){const v=document.getElementById('c-sede').value.trim().toUpperCase();if(!v){toast('Escriba un nombre',true);return;}if(ST.sedes.includes(v)){toast('Ya existe',true);return;}loader(true);try{ST.sedes.push(v);await saveConfig('sedes',ST.sedes);document.getElementById('c-sede').value='';toast('Sede agregada');renderConfig();fillSelects();}catch(e){ST.sedes.pop();toast('Error: '+e.message,true);}finally{loader(false);}}
 async function delSede(s){if(!confirm(`¿Eliminar "${s}"?`))return;loader(true);try{ST.sedes=ST.sedes.filter(x=>x!==s);await saveConfig('sedes',ST.sedes);toast('Sede eliminada');renderConfig();fillSelects();}catch(e){toast('Error',true);}finally{loader(false);}}
