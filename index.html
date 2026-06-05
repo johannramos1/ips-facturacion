@@ -572,7 +572,7 @@ async function loadAll(){
     if(!ST.medicos.length&&ST.registros.length){
       const uniq=[...new Map(ST.registros.map(r=>[r.sede+'|'+r.medico,{n:r.medico,s:r.sede,activo:true}])).values()].sort((a,b)=>a.s.localeCompare(b.s)||a.n.localeCompare(b.n));
       ST.medicos=uniq;
-      try{await sbP('configuracion','clave=eq.medicos',{valor:JSON.stringify(uniq)});}catch(e){console.warn('Auto-recuperacion: no se pudo guardar config medicos',e);}
+      try{await saveConfig('medicos',uniq);}catch(e){console.warn('Auto-recuperacion: no se pudo guardar config medicos',e);}
     }
     ST.loaded=true;
     setStatus(true,'Conectado · Supabase');
@@ -1087,7 +1087,15 @@ function exportCSV(){
 // ═══════════════════════════════
 // CONFIG
 // ═══════════════════════════════
-async function saveConfig(k,v){await sbP('configuracion','clave=eq.'+k,{valor:JSON.stringify(v)});}
+async function saveConfig(k,v){
+  // UPSERT garantiza que si la fila no existe la crea, si existe la actualiza
+  const r=await fetch(SB+'/rest/v1/configuracion?on_conflict=clave',{
+    method:'POST',
+    headers:{...H,'Prefer':'resolution=merge-duplicates'},
+    body:JSON.stringify({clave:k,valor:JSON.stringify(v)})
+  });
+  if(!r.ok)throw new Error(await r.text());
+}
 function renderConfig(){
   fillSelects();cargarUsuarios();
   document.getElementById('lista-sedes').innerHTML=ST.sedes.map(s=>`<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)"><span>${sBadge(s)} <span style="font-size:13px;margin-left:4px">${s}</span></span><button class="btn btn-ghost btn-sm" onclick="delSede('${s}')">✕</button></div>`).join('');
@@ -1182,21 +1190,26 @@ async function editarMedico(n,s){
   if(ST.medicos.find(m=>m.n===nuevoN&&m.s===s)){toast('Ya existe un médico con ese nombre en esta sede',true);return;}
   loader(true,'Actualizando nombre y registros históricos...');
   try{
-    // 1. Actualizar en ST.medicos y guardar en configuracion
+    // 1. Actualizar en memoria y persistir config via UPSERT
     const m=ST.medicos.find(x=>x.n===n&&x.s===s);
-    if(m)m.n=nuevoN;
+    if(!m){toast('Médico no encontrado',true);return;}
+    m.n=nuevoN;
     await saveConfig('medicos',ST.medicos);
-    // 2. Actualizar todos los registros históricos con el nombre viejo en esta sede
-    // Supabase no soporta UPDATE con filtro multiple directo via REST bulk,
-    // lo hacemos registro a registro sobre los afectados en ST.registros
+    // 2. Actualizar registros historicos en Supabase
     const afectados=ST.registros.filter(r=>r.medico===n&&r.sede===s);
     for(const r of afectados){
       await sbP('registros',`medico=eq.${encodeURIComponent(n)}&sede=eq.${encodeURIComponent(s)}&periodo=eq.${r.periodo}`,{medico:nuevoN});
     }
-    await loadAll();
-    toast(`✓ Nombre actualizado y ${afectados.length} registro(s) histórico(s) corregidos`);
+    // 3. Actualizar en memoria local sin recargar desde Supabase (evita sobreescritura)
+    afectados.forEach(r=>r.medico=nuevoN);
+    toast(`✓ "${n}" → "${nuevoN}" · ${afectados.length} registro(s) histórico(s) corregidos`);
     renderConfig();
-  }catch(e){toast('Error: '+e.message,true);}
+  }catch(e){
+    // Revertir cambio en memoria si fallo
+    const m2=ST.medicos.find(x=>x.n===nuevoN&&x.s===s);
+    if(m2)m2.n=n;
+    toast('Error: '+e.message,true);
+  }
   finally{loader(false);}
 }
 
