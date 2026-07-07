@@ -567,7 +567,10 @@ async function loadAll(){
     ]);
     ST.registros=regs;ST.urgencias=[];ST.totales=tots;
     const sr=cfgs.find(c=>c.clave==='sedes'),mr=cfgs.find(c=>c.clave==='medicos');
-    ST.sedes=sr?sr.valor:[];ST.medicos=mr?mr.valor:[];
+    // Normalizador: si valor llego como string (datos guardados doble-stringificados
+    // por versiones anteriores), parsear hasta obtener el array real.
+    const parseVal=v=>{let x=v,i=0;while(typeof x==='string'&&i<3){try{x=JSON.parse(x);}catch(e){break;}i++;}return Array.isArray(x)?x:[];};
+    ST.sedes=sr?parseVal(sr.valor):[];ST.medicos=mr?parseVal(mr.valor):[];
     // Auto-recuperacion: si medicos esta vacio, reconstruir desde registros y guardar
     if(!ST.medicos.length&&ST.registros.length){
       const uniq=[...new Map(ST.registros.map(r=>[r.sede+'|'+r.medico,{n:r.medico,s:r.sede,activo:true}])).values()].sort((a,b)=>a.s.localeCompare(b.s)||a.n.localeCompare(b.n));
@@ -1088,11 +1091,13 @@ function exportCSV(){
 // CONFIG
 // ═══════════════════════════════
 async function saveConfig(k,v){
-  // UPSERT garantiza que si la fila no existe la crea, si existe la actualiza
+  // UPSERT garantiza que si la fila no existe la crea, si existe la actualiza.
+  // IMPORTANTE: valor va directo (la columna es jsonb) — NO usar JSON.stringify(v)
+  // porque guardaria un string dentro del jsonb y al leerlo .filter() fallaria.
   const r=await fetch(SB+'/rest/v1/configuracion?on_conflict=clave',{
     method:'POST',
     headers:{...H,'Prefer':'resolution=merge-duplicates'},
-    body:JSON.stringify({clave:k,valor:JSON.stringify(v)})
+    body:JSON.stringify({clave:k,valor:v})
   });
   if(!r.ok)throw new Error(await r.text());
 }
